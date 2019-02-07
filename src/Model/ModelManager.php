@@ -417,7 +417,19 @@ class ModelManager implements ModelManagerInterface, LockInterface
             foreach ($fieldNames as $posName => $name) {
                 $parameterName = sprintf('field_%s_%s_%d', $prefix, $name, $pos);
                 $ands[] = sprintf('%s.%s = :%s', current($qb->getRootAliases()), $name, $parameterName);
-                $qb->setParameter($parameterName, $ids[$posName]);
+
+                // TODO patch
+                $platform = $this->getEntityManager($class)->getConnection()->getDatabasePlatform();
+                $id = $ids[$posName];
+                $metadata = $this->getMetadata($class);
+                // TODO find a way to resolve "id object"
+                $fieldType = $metadata->getTypeOfField($name);
+                $type = $fieldType && Type::hasType($fieldType) ? Type::getType($fieldType) : null;
+                if ($type) {
+                    $id = $type->convertToPHPValue($id, $platform);
+                }
+
+                $qb->setParameter($parameterName, $id);
             }
 
             $sqls[] = implode(' AND ', $ands);
